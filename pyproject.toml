@@ -11,7 +11,11 @@ dependencies = [
     "numpy (>=2.3.3,<3.0.0)",
     "pandas>=2.0.0",
     "datasets>=2.0.0",
-    "scikit-learn>=1.0.0"
+    "scikit-learn>=1.0.0",
+    "transformers>=4.30.0",
+    "torch>=2.0.0",
+    "tqdm>=4.65.0",
+    "accelerate>=0.20.0"
 ]
 
 
