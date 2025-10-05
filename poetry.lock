@@ -531,6 +531,57 @@ test-full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "cloudpickle", "dask", "d
 tqdm = ["tqdm"]
 
 [[package]]
+name = "fugashi"
+version = "1.5.1"
+description = "Cython MeCab wrapper for fast, pythonic Japanese tokenization."
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "fugashi-1.5.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:5d0869322aaca88307b554ef5ece9536fe225c88bc546221af5a93c47a02295c"},
+    {file = "fugashi-1.5.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:0aa7a589620c908217610d4c00d8f6452e4fc32442ae12057cfb8684d5abb7eb"},
+    {file = "fugashi-1.5.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:035c61d8f6741573e760b74c1481f1959cf386a38c5c7f740c78aba6ef3cf59e"},
+    {file = "fugashi-1.5.1-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:992c154c2534304ef225c799909634c0e4616644253a0dd30e1e51fac614e14c"},
+    {file = "fugashi-1.5.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:3926f8ed37eba51b478d35044dd04d92722efc29e5a7e6e8c5f9fc25a1b73cc2"},
+    {file = "fugashi-1.5.1-cp310-cp310-win_amd64.whl", hash = "sha256:f0659ff676f7c4b2a4e71f031cba4755ac7fb6ddfe247c6f39639b7e21ec06fe"},
+    {file = "fugashi-1.5.1-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:1bc5080f9560163dbe05f8db635a883452c6180231612c36f73b6a839080afe2"},
+    {file = "fugashi-1.5.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:93b8b9ccfe9c997275a22254201413f8423d36f7ec983feee2eb799210c42b00"},
+    {file = "fugashi-1.5.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:9da56f12f6f1374e8cda94887b2a928bd1df18d068063f4b4fcb6f5aa6435134"},
+    {file = "fugashi-1.5.1-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:d74e89620b8be99141b4458a1ec867cafc5771c8fa89821f2c272d6e87094e6e"},
+    {file = "fugashi-1.5.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:c571d4a722405e619b17ed00b5f9cdb03eb322452d91966e3f23f08537d2a955"},
+    {file = "fugashi-1.5.1-cp311-cp311-win_amd64.whl", hash = "sha256:e4edae22010b1c442467837134c059367d682800c8d11530331863bf8ecec9b6"},
+    {file = "fugashi-1.5.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:9d6e6398a1dd8d704dbd26790195455166f6f93d0fdbebf5d1913a69d15adb22"},
+    {file = "fugashi-1.5.1-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:a02a8e4ab7758c29d8b217c8d7b019079220846fdeb04b7e1ddd4dfdb2570b7e"},
+    {file = "fugashi-1.5.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:a01c97af19a378545d7600bcb10552bebb4fe70b54a66032cc78cee1be328d66"},
+    {file = "fugashi-1.5.1-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:97906d1c7c56907b87c3fcf587a4990504784d7beecb67673c78c8dd608644c1"},
+    {file = "fugashi-1.5.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:823e6db97d57079da4c3fcc26f04943b894974af5a22f4762e6f6ba2ed63f212"},
+    {file = "fugashi-1.5.1-cp312-cp312-win_amd64.whl", hash = "sha256:5afa5a2bf11d039a8e45eac0ba5c2bff54ed9ef9379cb9ad7f67c987a7f6dfc0"},
+    {file = "fugashi-1.5.1-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:e6f69766af17299635fa5c2ee9fe99476482003126ee1769f565a661ebd4cfb1"},
+    {file = "fugashi-1.5.1-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:2055a0e0993261906f3010522ccc94b8bb9278b35a726ed58b314a5b539b9511"},
+    {file = "fugashi-1.5.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:f0f3e269bfd9ba92c64086d9e6963a0bd81a3dffb9b6eeb981f33902738b7956"},
+    {file = "fugashi-1.5.1-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:53ff43069ed46bd0d5dec4140115f7883bf4a590d70f3c90a422c61260be342b"},
+    {file = "fugashi-1.5.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:53ce31df44b4e95904793280eda0e9895646828859801d457314efc1d535cb4f"},
+    {file = "fugashi-1.5.1-cp313-cp313-win_amd64.whl", hash = "sha256:adf1646103151af5c0b78f11fd01e145c506774609243935c0978606e4a96ad3"},
+    {file = "fugashi-1.5.1-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:fc0f599d64bb3047b991f577aadae7134ba4e8014523a3856f5ac74ec6dc95d1"},
+    {file = "fugashi-1.5.1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:07ab7d27674fbd19bd979cfdee20fecbc7f2b0f70c10b0dcaa265879be501586"},
+    {file = "fugashi-1.5.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:a1c8731dafe5f467c583f57c6f70d230099f023773f01ee376bf488a91dbcb37"},
+    {file = "fugashi-1.5.1-cp39-cp39-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:2c163744803791c19a6076b18be9d31c8c09e0de11f76a5aa657be138087c7cc"},
+    {file = "fugashi-1.5.1-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:877d2c8751abb08271db7c35bc87b1c98ab42917a80c5b86e786c01dc818ad7d"},
+    {file = "fugashi-1.5.1-cp39-cp39-win_amd64.whl", hash = "sha256:c3b2f1aafc3a90e942ccb2d970d54740f68f70fd55bdf871d95914ed89b9841b"},
+    {file = "fugashi-1.5.1-pp310-pypy310_pp73-macosx_10_15_x86_64.whl", hash = "sha256:419aad1c46480accb851dc5579c1fdc5ca118e3ba78c08ec03798eca8a5f2dd5"},
+    {file = "fugashi-1.5.1-pp310-pypy310_pp73-macosx_11_0_arm64.whl", hash = "sha256:fe83c015dc99e4fcafd660d5bc1a88b49207eb7b7ac280026d35d3f675e58709"},
+    {file = "fugashi-1.5.1-pp311-pypy311_pp73-macosx_10_15_x86_64.whl", hash = "sha256:b24041680488c8afa6ad93273c608427364868ba2867f2cc2807fb837e346713"},
+    {file = "fugashi-1.5.1-pp311-pypy311_pp73-macosx_11_0_arm64.whl", hash = "sha256:42cb6788fad267eaa75bd3a1bc5f04ddb7a944030ba1a9a510ed20bdc9975c8a"},
+    {file = "fugashi-1.5.1-pp39-pypy39_pp73-macosx_10_15_x86_64.whl", hash = "sha256:f5ceff307605a6b871b86ce8bc9e7bd06c478567e6ecfb748ea13032dc2a8074"},
+    {file = "fugashi-1.5.1-pp39-pypy39_pp73-macosx_11_0_arm64.whl", hash = "sha256:b4feb168ee46a71383b78626649d0c672fd8938c0ccfc3b1455700adb54f1ced"},
+    {file = "fugashi-1.5.1.tar.gz", hash = "sha256:3ff9b4d0e40e04d56d7ced906ae8fba6c6fa41aac46f5210de1b56d6626e7a1f"},
+]
+
+[package.extras]
+unidic = ["unidic"]
+unidic-lite = ["unidic-lite"]
+
+[[package]]
 name = "hf-xet"
 version = "1.1.10"
 description = "Fast transfer of large files with the Hugging Face Hub."
@@ -2256,6 +2307,17 @@ files = [
 ]
 
 [[package]]
+name = "unidic-lite"
+version = "1.0.8"
+description = "A small version of UniDic packaged for Python"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "unidic-lite-1.0.8.tar.gz", hash = "sha256:db9d4572d9fdd4d00a97949d4b0741ec480ee05a7e7e2e32f547500dae27b245"},
+]
+
+[[package]]
 name = "urllib3"
 version = "2.5.0"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
@@ -2528,4 +2590,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "3225e5da7031586869f8ef6cb576629fb14dad6ae5770d3c12feb5bf316e3afe"
+content-hash = "60f718f55bd9b6ea9550de76296425cb038fc205246846c978cb619cc7fa07ed"

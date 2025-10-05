@@ -15,7 +15,9 @@ dependencies = [
     "transformers>=4.30.0",
     "torch>=2.0.0",
     "tqdm>=4.65.0",
-    "accelerate>=0.20.0"
+    "accelerate>=0.20.0",
+    "fugashi (>=1.5.1,<2.0.0)",
+    "unidic-lite (>=1.0.8,<2.0.0)"
 ]
 
 
