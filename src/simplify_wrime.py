@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 from load_wrime import WRIMELoader
-from utils import is_fp16_available
+from utils import detect_device, is_fp16_available
 
 
 class WRIMESimplifier:
@@ -74,9 +74,15 @@ class WRIMESimplifier:
 
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
 
-        # デバイス設定
+                # デバイス設定
         if self.device == "auto":
-            device_map = "auto"
+            device_map = detect_device()
+        elif self.device == "gpu" or self.device == "cuda":
+            device_map = "cuda"
+        elif self.device == "mps":
+            device_map = "mps"
+        elif self.device == "cpu":
+            device_map = "cuda"
         else:
             device_map = None
 

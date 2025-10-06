@@ -14,7 +14,6 @@ import pandas as pd
 
 from load_wrime import WRIMELoader
 from simplify_wrime import WRIMESimplifier
-from utils import detect_device
 
 # ============================================================
 # グローバル設定
@@ -128,10 +127,6 @@ def main():
 
     args = parser.parse_args()
 
-    # デバイスを自動検出
-    device = detect_device()
-    print(f"Using device: {device}")
-
     # 出力ディレクトリ作成
     output_dir = Path(OUTPUT_DIR)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -159,7 +154,7 @@ def main():
     print(f"\nInitializing simplifier with model: {MODEL_NAME}")
     simplifier = TestSimplifier(
         model_name=MODEL_NAME,
-        device=device,
+        device="auto",
         verbose=True,
     )
 
@@ -213,7 +208,6 @@ def main():
     metadata = {
         "model": MODEL_NAME,
         "n_samples": args.n_samples,
-        "device": device,
         "custom_prompt_file": TestSimplifier.PROMPT_FILE,
         "splits": {
             split_name: {
