@@ -33,7 +33,7 @@ class WRIMESimplifier:
         Args:
             data_dir: データ保存先ディレクトリ
             model_name: 使用するLLMのモデル名
-            device: デバイス指定 ("auto", "cuda", "cpu")
+            device: デバイス指定 ("auto", "cuda", "mps", "cpu")
             batch_size: バッチサイズ
             verbose: 詳細なログ出力（Falseで速度重視）
         """
@@ -80,10 +80,14 @@ class WRIMESimplifier:
             device_map = None
 
         # モデルの読み込み
+        # CUDA, MPSが利用可能ならfloat16、CPUならfloat32
+        use_fp16 = torch.cuda.is_available() or (
+            hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+        )
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             device_map=device_map,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+            torch_dtype=torch.float16 if use_fp16 else torch.float32,
         )
 
         if self.verbose:
