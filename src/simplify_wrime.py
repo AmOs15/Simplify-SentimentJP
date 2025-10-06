@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 from load_wrime import WRIMELoader
+from utils import is_fp16_available
 
 
 class WRIMESimplifier:
@@ -81,9 +82,7 @@ class WRIMESimplifier:
 
         # モデルの読み込み
         # CUDA, MPSが利用可能ならfloat16、CPUならfloat32
-        use_fp16 = torch.cuda.is_available() or (
-            hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
-        )
+        use_fp16 = is_fp16_available()
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             device_map=device_map,

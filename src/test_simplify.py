@@ -3,7 +3,6 @@ LLMによる平易化の検証用スクリプト
 
 train, valid, testの各セットから、各クラス(neg, neu, pos)をバランスよく
 10件ずつサンプリングして平易化を行い、結果を保存します。
-モデルやプロンプトを変更して検証できます。
 """
 
 from pathlib import Path
@@ -15,32 +14,74 @@ import pandas as pd
 
 from load_wrime import WRIMELoader
 from simplify_wrime import WRIMESimplifier
+from utils import detect_device
+
+# ============================================================
+# グローバル設定
+# ============================================================
+MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"  # 使用するLLMモデル
+OUTPUT_DIR = "outputs/test_simplification"  # 結果の保存先
 
 
 class TestSimplifier(WRIMESimplifier):
     """検証用の平易化クラス（カスタムプロンプト対応）"""
 
+    # プロンプトファイルのパス（クラス定数）
+    PROMPT_FILE = "test_simplification/custom_prompt_example.txt"
+
     def __init__(
         self,
         data_dir: str = "data",
-        model_name: str = "Qwen/Qwen2.5-7B-Instruct",
+        model_name: str = MODEL_NAME,
         device: str = "auto",
         batch_size: int = 1,
         verbose: bool = True,
-        custom_prompt_template: Optional[str] = None,
     ):
         """
         Args:
-            custom_prompt_template: カスタムプロンプトテンプレート
-                                   {text}が元の文章に置き換えられます
+            data_dir: データ保存先ディレクトリ
+            model_name: 使用するLLMのモデル名
+            device: デバイス指定
+            batch_size: バッチサイズ
+            verbose: 詳細なログ出力
         """
         super().__init__(data_dir, model_name, device, batch_size, verbose)
-        self.custom_prompt_template = custom_prompt_template
+        # カスタムプロンプトテンプレートを読み込み
+        self.custom_prompt_template = self._load_custom_prompt()
+
+    def _load_custom_prompt(self) -> str:
+        """
+        カスタムプロンプトテンプレートをファイルから読み込む
+
+        Returns:
+            プロンプトテンプレート文字列
+        """
+        prompt_path = Path(self.PROMPT_FILE)
+        if not prompt_path.exists():
+            if self.verbose:
+                print(f"Warning: Prompt file not found: {prompt_path}, using default prompt")
+            return None
+
+        with open(prompt_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        if self.verbose:
+            print(f"Loaded custom prompt from: {prompt_path}")
+
+        return content
 
     def _create_simplification_prompt(self, text: str) -> str:
         """カスタムプロンプトがあればそれを使用"""
         if self.custom_prompt_template:
-            return self.custom_prompt_template.format(text=text)
+            # プロンプトテンプレートの{text}を実際のテキストに置換
+            if self.custom_prompt_template.startswith('prompt = f"""'):
+                # テンプレートをコードとして評価
+                local_vars = {'text': text}
+                exec(self.custom_prompt_template, {}, local_vars)
+                return local_vars['prompt']
+            else:
+                # シンプルなテンプレート文字列の場合
+                return self.custom_prompt_template.format(text=text)
         return super()._create_simplification_prompt(text)
 
 
@@ -76,55 +117,24 @@ def sample_balanced_data(df: pd.DataFrame, n_samples: int = 10) -> pd.DataFrame:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="LLM平易化の検証用スクリプト"
-    )
-    parser.add_argument(
-        "--model",
-        type=str,
-        default="Qwen/Qwen2.5-7B-Instruct",
-        help="使用するLLMモデル名",
+        description="WRIMEコーパスの平易化検証用スクリプト"
     )
     parser.add_argument(
         "--n_samples",
         type=int,
         default=10,
-        help="各セット（train/valid/test）からサンプリングする数",
-    )
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="outputs/test_simplification",
-        help="結果の保存先ディレクトリ",
-    )
-    parser.add_argument(
-        "--prompt_file",
-        type=str,
-        default=None,
-        help="カスタムプロンプトテンプレートファイル（オプション）",
-    )
-    parser.add_argument(
-        "--device",
-        type=str,
-        default="auto",
-        choices=["auto", "cuda", "mps", "cpu"],
-        help="使用するデバイス",
+        help="各セット（train/valid/test）からサンプリングする数（デフォルト: 10）",
     )
 
     args = parser.parse_args()
 
-    # 出力ディレクトリ作成
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # デバイスを自動検出
+    device = detect_device()
+    print(f"Using device: {device}")
 
-    # カスタムプロンプトの読み込み（オプション）
-    custom_prompt = None
-    if args.prompt_file:
-        prompt_path = Path(args.prompt_file)
-        if prompt_path.exists():
-            custom_prompt = prompt_path.read_text(encoding="utf-8")
-            print(f"Loaded custom prompt from: {args.prompt_file}")
-        else:
-            print(f"Warning: Prompt file not found: {args.prompt_file}")
+    # 出力ディレクトリ作成
+    output_dir = Path(OUTPUT_DIR)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # データセットの読み込み
     print("Loading WRIME dataset...")
@@ -146,12 +156,11 @@ def main():
             print(f"    {label}: {count}")
 
     # 平易化処理
-    print(f"\nInitializing simplifier with model: {args.model}")
+    print(f"\nInitializing simplifier with model: {MODEL_NAME}")
     simplifier = TestSimplifier(
-        model_name=args.model,
-        device=args.device,
+        model_name=MODEL_NAME,
+        device=device,
         verbose=True,
-        custom_prompt_template=custom_prompt,
     )
 
     # 各セットを平易化
@@ -202,11 +211,10 @@ def main():
 
     # メタデータを保存
     metadata = {
-        "model": args.model,
+        "model": MODEL_NAME,
         "n_samples": args.n_samples,
-        "device": args.device,
-        "custom_prompt_used": args.prompt_file is not None,
-        "prompt_file": args.prompt_file,
+        "device": device,
+        "custom_prompt_file": TestSimplifier.PROMPT_FILE,
         "splits": {
             split_name: {
                 "total_samples": len(df),
