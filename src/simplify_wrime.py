@@ -25,7 +25,7 @@ class WRIMESimplifier:
     def __init__(
         self,
         data_dir: str = "data",
-        model_name: str = "Qwen/Qwen2.5-7B-Instruct",
+        model_name: str = "tokyotech-llm/Swallow-7b-instruct-v0.1",
         device: str = "auto",
         batch_size: int = 1,
         verbose: bool = False,
@@ -98,7 +98,7 @@ class WRIMESimplifier:
         if self.verbose:
             print(f"Model loaded on device: {self.model.device}")
 
-    def _create_simplification_prompt(self, text: str) -> str:
+    def _create_simplification_prompt(self, text: str) -> list:
         """
         文化庁「やさしい日本語」書換え原則に基づくプロンプトを作成
 
@@ -106,9 +106,9 @@ class WRIMESimplifier:
             text: 平易化したい文章
 
         Returns:
-            プロンプト文字列
+            messages形式のリスト（Swallowモデル用）
         """
-        prompt = f"""あなたは日本語の文章を平易化する専門家です。以下の文章を「やさしい日本語」に書き換えてください。
+        user_content = f"""以下の文章を「やさしい日本語」に書き換えてください。
 
 【やさしい日本語の書換え原則】
 1. 難しい言葉を簡単な言葉に置き換える
@@ -128,7 +128,12 @@ class WRIMESimplifier:
 
 【やさしい日本語に書き換えた文章】
 """
-        return prompt
+
+        messages = [
+            {"role": "system", "content": "あなたは誠実で優秀な日本人のアシスタントです。"},
+            {"role": "user", "content": user_content}
+        ]
+        return messages
 
     def _simplify_text(self, text: str, max_retries: int = 3) -> Optional[str]:
         """
@@ -144,12 +149,16 @@ class WRIMESimplifier:
         if self.model is None:
             self._initialize_model()
 
-        prompt = self._create_simplification_prompt(text)
+        messages = self._create_simplification_prompt(text)
 
         for attempt in range(max_retries):
             try:
-                # トークナイズ
-                inputs = self.tokenizer(prompt, return_tensors="pt")
+                # apply_chat_templateを使用してプロンプトを生成
+                inputs = self.tokenizer.apply_chat_template(
+                    messages,
+                    return_tensors="pt",
+                    add_generation_prompt=True
+                )
 
                 # モデルのデバイスに入力を移動
                 model_device = next(self.model.parameters()).device
@@ -157,7 +166,7 @@ class WRIMESimplifier:
 
                 # 生成
                 outputs = self.model.generate(
-                    **inputs,
+                    inputs,
                     max_new_tokens=512,
                     temperature=0.7,
                     do_sample=True,
@@ -168,8 +177,13 @@ class WRIMESimplifier:
                 # デコード
                 generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-                # プロンプト部分を除去して出力のみを抽出
-                simplified = generated_text.split("【やさしい日本語に書き換えた文章】")[-1].strip()
+                # apply_chat_templateで生成されたプロンプト部分を除去
+                # Swallowモデルの場合、[/INST]の後の出力を抽出
+                if "[/INST]" in generated_text:
+                    simplified = generated_text.split("[/INST]")[-1].strip()
+                else:
+                    # フォールバック: プロンプトの最後の部分で分割
+                    simplified = generated_text.split("【やさしい日本語に書き換えた文章】")[-1].strip()
 
                 # 空文字列や元の文章と同じ場合はリトライ
                 if simplified and simplified != text:
@@ -352,7 +366,7 @@ def main():
 
     # 平易化処理
     simplifier = WRIMESimplifier(
-        model_name="Qwen/Qwen2.5-7B-Instruct",
+        model_name="tokyotech-llm/Swallow-7b-instruct-v0.1",
         device="auto",
         verbose=True,  # 詳細ログを表示する場合はTrue
     )

@@ -18,7 +18,7 @@ from simplify_wrime import WRIMESimplifier
 # ============================================================
 # グローバル設定
 # ============================================================
-MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"  # 使用するLLMモデル
+MODEL_NAME = "tokyotech-llm/Swallow-7b-instruct-v0.1"  # 使用するLLMモデル
 OUTPUT_DIR = "outputs/test_simplification"  # 結果の保存先
 
 
@@ -69,18 +69,26 @@ class TestSimplifier(WRIMESimplifier):
 
         return content
 
-    def _create_simplification_prompt(self, text: str) -> str:
-        """カスタムプロンプトがあればそれを使用"""
+    def _create_simplification_prompt(self, text: str) -> list:
+        """カスタムプロンプトがあればそれを使用（messages形式で返す）"""
         if self.custom_prompt_template:
             # プロンプトテンプレートの{text}を実際のテキストに置換
+            user_content = None
             if self.custom_prompt_template.startswith('prompt = f"""'):
                 # テンプレートをコードとして評価
                 local_vars = {'text': text}
                 exec(self.custom_prompt_template, {}, local_vars)
-                return local_vars['prompt']
+                user_content = local_vars['prompt']
             else:
                 # シンプルなテンプレート文字列の場合
-                return self.custom_prompt_template.format(text=text)
+                user_content = self.custom_prompt_template.format(text=text)
+
+            # messages形式に変換
+            messages = [
+                {"role": "system", "content": "あなたは誠実で優秀な日本人のアシスタントです。"},
+                {"role": "user", "content": user_content}
+            ]
+            return messages
         return super()._create_simplification_prompt(text)
 
 
