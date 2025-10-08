@@ -82,7 +82,7 @@ class WRIMESimplifier:
         elif self.device == "mps":
             device_map = "mps"
         elif self.device == "cpu":
-            device_map = "cuda"
+            device_map = "cpu"
         else:
             device_map = None
 
