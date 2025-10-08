@@ -215,17 +215,24 @@ def main():
     # メタデータを保存
     metadata = {
         "model": MODEL_NAME,
-        "n_samples": args.n_samples,
+        "n_samples": int(args.n_samples),
         "custom_prompt_file": TestSimplifier.PROMPT_FILE,
-        "splits": {
-            split_name: {
-                "total_samples": len(df),
-                "class_distribution": df["label"].value_counts().to_dict(),
-                "failed_count": df["text_simplified"].isna().sum(),
-            }
-            for split_name, df in results.items()
-        },
+        "splits": {},
     }
+
+    for split_name, df in results.items():
+        total_samples = int(len(df))
+
+        raw_dist = df["label"].value_counts().to_dict()
+        class_distribution = {str(k): int(v) for k, v in raw_dist.items()}
+
+        failed_count = int(df["text_simplified"].isna().sum())
+
+        metadata["splits"][split_name] = {
+            "total_samples": total_samples,
+            "class_distribution": class_distribution,
+            "failed_count": failed_count,
+        }
 
     metadata_path = output_dir / "metadata.json"
     with open(metadata_path, "w", encoding="utf-8") as f:
