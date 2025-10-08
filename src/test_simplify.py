@@ -6,7 +6,6 @@ train, valid, testの各セットから、各クラス(neg, neu, pos)をバラ�
 """
 
 from pathlib import Path
-from typing import Optional
 import argparse
 import json
 
@@ -21,75 +20,59 @@ from simplify_wrime import WRIMESimplifier
 MODEL_NAME = "tokyotech-llm/Swallow-7b-instruct-v0.1"  # 使用するLLMモデル
 OUTPUT_DIR = "outputs/test_simplification"  # 結果の保存先
 
+# プロンプト設定
+SYSTEM_PROMPT = """あなたは誠実で優秀な日本人のアシスタントです。
+# 命令書
+
+あなたは、文章を平易化する専門家です。
+与えられた【元の文章】を、日本に住み始めたばかりの外国人を対象読者として、以下の#ルールと#出力形式に厳密に従って、やさしい日本語の文章に書き換えてください。
+
+# ルール
+- **語彙**: 難しい専門用語や漢語を避け、小学校中学年までで習うような、具体的で身近な言葉を選びます。
+- **文法**:
+    - 一つの文は短く、簡潔にします。一つの文には一つの情報だけを入れます。
+    - 尊敬語や謙譲語は使わず、「です・ます」調の丁寧語に統一します。
+    - 受け身の文（例：「〜される」）ではなく、誰が何をするのかが明確な能動態の文（例：「〜が〜する」）を使います。
+    - 二重否定や曖昧な表現は使わず、直接的で分かりやすい表現にします。
+- **構成**: 情報の構造を分かりやすく整理します。
+- **情報**: 元の文章が持つ最も重要な意味、意図、ニュアンスは必ず維持してください。
+
+# 出力形式
+- 必ず書き換えた「やさしい日本語の文章」の本文のみを出力してください。これは必須要件です。
+- 挨拶、導入、追加の説明や解説、言い訳など、本文以外の情報は一切含めてはいけません。禁止です。
+
+# 例
+Input
+当市役所にて住民票の写しの交付申請をされる際は、本人確認書類の提示が義務付けられておりますので、ご持参くださいますようお願い申し上げます。
+
+Output
+市役所で「住民票の写し」を申し込むときは、本人確認の書類を見せてください。運転免許証や在留カードなどを、忘れずに持ってきてください。
+"""
+
+USER_PROMPT_TEMPLATE = """{text}
+"""
+
 
 class TestSimplifier(WRIMESimplifier):
-    """検証用の平易化クラス（カスタムプロンプト対応）"""
-
-    # プロンプトファイルのパス（クラス定数）
-    PROMPT_FILE = "test_simplification/custom_prompt_example.txt"
-
-    def __init__(
-        self,
-        data_dir: str = "data",
-        model_name: str = MODEL_NAME,
-        device: str = "auto",
-        batch_size: int = 1,
-        verbose: bool = True,
-    ):
-        """
-        Args:
-            data_dir: データ保存先ディレクトリ
-            model_name: 使用するLLMのモデル名
-            device: デバイス指定
-            batch_size: バッチサイズ
-            verbose: 詳細なログ出力
-        """
-        super().__init__(data_dir, model_name, device, batch_size, verbose)
-        # カスタムプロンプトテンプレートを読み込み
-        self.custom_prompt_template = self._load_custom_prompt()
-
-    def _load_custom_prompt(self) -> str:
-        """
-        カスタムプロンプトテンプレートをファイルから読み込む
-
-        Returns:
-            プロンプトテンプレート文字列
-        """
-        prompt_path = Path(self.PROMPT_FILE)
-        if not prompt_path.exists():
-            if self.verbose:
-                print(f"Warning: Prompt file not found: {prompt_path}, using default prompt")
-            return None
-
-        with open(prompt_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-
-        if self.verbose:
-            print(f"Loaded custom prompt from: {prompt_path}")
-
-        return content
+    """検証用の平易化クラス"""
 
     def _create_simplification_prompt(self, text: str) -> list:
-        """カスタムプロンプトがあればそれを使用（messages形式で返す）"""
-        if self.custom_prompt_template:
-            # プロンプトテンプレートの{text}を実際のテキストに置換
-            user_content = None
-            if self.custom_prompt_template.startswith('prompt = f"""'):
-                # テンプレートをコードとして評価
-                local_vars = {'text': text}
-                exec(self.custom_prompt_template, {}, local_vars)
-                user_content = local_vars['prompt']
-            else:
-                # シンプルなテンプレート文字列の場合
-                user_content = self.custom_prompt_template.format(text=text)
+        """
+        グローバル変数で定義されたプロンプトを使用してmessages形式で返す
 
-            # messages形式に変換
-            messages = [
-                {"role": "system", "content": "あなたは誠実で優秀な日本人のアシスタントです。"},
-                {"role": "user", "content": user_content}
-            ]
-            return messages
-        return super()._create_simplification_prompt(text)
+        Args:
+            text: 平易化したい文章
+
+        Returns:
+            messages形式のリスト
+        """
+        user_content = USER_PROMPT_TEMPLATE.format(text=text)
+
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_content}
+        ]
+        return messages
 
 
 def sample_balanced_data(df: pd.DataFrame, n_samples: int = 10) -> pd.DataFrame:
@@ -216,7 +199,8 @@ def main():
     metadata = {
         "model": MODEL_NAME,
         "n_samples": int(args.n_samples),
-        "custom_prompt_file": TestSimplifier.PROMPT_FILE,
+        "system_prompt": SYSTEM_PROMPT,
+        "user_prompt_template": USER_PROMPT_TEMPLATE,
         "splits": {},
     }
 
