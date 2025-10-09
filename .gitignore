@@ -4,3 +4,4 @@ CLAUDE.md
 STEP.md
 data/*
 outputs/*
+.env
