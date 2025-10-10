@@ -5,4 +5,5 @@ ImplementationPolicy.md
 STEP.md
 data/*
 outputs/*
+*.log
 .env
