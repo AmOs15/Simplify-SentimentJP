@@ -28,9 +28,12 @@ class WRIMELoader:
         self.data_dir.mkdir(exist_ok=True)
 
         self.raw_tsv_file = self.data_dir / "wrime-ver2.tsv"
-        self.train_file = self.data_dir / "wrime_train.pkl"
-        self.valid_file = self.data_dir / "wrime_valid.pkl"
-        self.test_file = self.data_dir / "wrime_test.pkl"
+        # self.train_file = self.data_dir / "wrime_train.pkl"
+        # self.valid_file = self.data_dir / "wrime_valid.pkl"
+        # self.test_file = self.data_dir / "wrime_test.pkl"
+        self.train_file = self.data_dir / "wrime_subset_train.pkl"
+        self.valid_file = self.data_dir / "wrime_subset_valid.pkl"
+        self.test_file = self.data_dir / "wrime_subset_test.pkl"
 
         self.download_url = "https://github.com/ids-cv/wrime/raw/master/wrime-ver2.tsv"
 

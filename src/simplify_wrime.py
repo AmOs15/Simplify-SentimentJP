@@ -12,11 +12,49 @@ from pathlib import Path
 from typing import Dict, Tuple, Optional
 import time
 from datetime import datetime, timedelta
+import re
 
 import pandas as pd
 
 from load_wrime import WRIMELoader
 from utils import detect_device, is_fp16_available
+
+
+SYSTEM_PROMPT = """あなたは日本語文章の平易化の専門家です。
+次の制約を必ず守ってください。
+
+# 目的
+- 文化庁や自治体の「やさしい日本語」指針に基づき、初心者にも読みやすい文に書き換える。
+- 元の重要な意味・意図・感情の極性（ポジ/ネガ）は必ず保持する。
+
+# 書き換え原則（抜粋）
+- 語彙：難語・専門用語・漢語を避け、具体的で身近な語を選ぶ。
+- 文法：一文は短く、能動態で、二重否定や曖昧表現を避ける。「です・ます」に統一。
+- 構成：情報を整理し、要点を前に出す。冗長な言い回しを省く。
+
+# 出力仕様（厳守）
+- 出力は必ず 1 行。
+- 先頭に `output: ` を付け、その後に平易化文のみを書く。
+- 複数文でも途中で改行しない（句点「。」で区切るが改行は入れない）。
+- 説明・前置き・引用符・記号・装飾・箇条書き・余談は一切入れない。
+- 文末は日本語の句点「。」で終える。
+- 上記を守れない場合は、例外的に `output: [SKIP]` のみを出力する。
+"""
+
+
+USER_PROMPT_TEMPLATE = """
+# 入力
+{text}
+
+# 作業
+上の「入力」を、上記の書き換え原則に沿って平易化してください。
+
+# 出力
+下の行に、仕様どおり 1 行で出力してください。
+
+output:
+"""
+
 
 
 class WRIMESimplifier:
@@ -108,32 +146,50 @@ class WRIMESimplifier:
         Returns:
             messages形式のリスト（Swallowモデル用）
         """
-        user_content = f"""以下の文章を「やさしい日本語」に書き換えてください。
-
-【やさしい日本語の書換え原則】
-1. 難しい言葉を簡単な言葉に置き換える
-2. 長い文を短く分割する
-3. 漢字を減らし、ひらがなを増やす（ただし読みやすさを保つ）
-4. 二重否定を避ける
-5. 受動態を能動態にする
-6. 曖昧な表現を具体的にする
-
-【重要な制約】
-- 元の文章の意味を必ず保持してください
-- 元の文章の感情（ポジティブ・ネガティブ・中立）を必ず保持してください
-- 書き換え後の文章のみを出力してください（説明や追加情報は不要です）
-
-【元の文章】
-{text}
-
-【やさしい日本語に書き換えた文章】
-"""
+        system_prompt = SYSTEM_PROMPT
+        user_content = USER_PROMPT_TEMPLATE.format(text=text)  # ★埋め込み
 
         messages = [
-            {"role": "system", "content": "あなたは誠実で優秀な日本人のアシスタントです。"},
-            {"role": "user", "content": user_content}
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
         ]
         return messages
+    
+    def _normalize_one_line(self, s: str) -> str:
+        # 改行や重複空白をスペース1個に
+        s = re.sub(r"\s*\n+\s*", " ", s)
+        s = re.sub(r"\s{2,}", " ", s)
+        return s.strip()
+
+    def _extract_output(self, generated_text: str) -> Optional[str]:
+        """
+        Chat生成テキストから `output:` の値だけを安全に抽出し、1行に正規化して返す
+        """
+        # apply_chat_templateで生成されたプロンプト部分を除去
+        # Swallowモデルの場合、[/INST]の後の出力を抽出
+        tail = generated_text.split("[/INST]", 1)[-1] if "[/INST]" in generated_text else generated_text
+
+        # 最初の output: を見つける
+        m = re.search(r"output\s*:\s*(.+)", tail, flags=re.IGNORECASE | re.DOTALL)
+        if not m:
+            return None
+
+        # 次の役割ラベルや空行の手前までを切り出す
+        candidate = m.group(1)
+        candidate = re.split(
+            r"\n{2,}|(?:^|\n)\s*(?:system|user|assistant)\s*:",
+            candidate, maxsplit=1, flags=re.IGNORECASE
+        )[0]
+
+        # コードブロック等の終端があれば手前まで
+        candidate = re.split(r"```|~~~", candidate, maxsplit=1)[0]
+
+        # 1行化 & 余計な引用符・括弧を除去
+        candidate = self._normalize_one_line(candidate)
+        candidate = candidate.strip(" \"'“”「」『』（）()")
+
+        return candidate or None
+
 
     def _simplify_text(self, text: str, max_retries: int = 3) -> Optional[str]:
         """
@@ -167,26 +223,24 @@ class WRIMESimplifier:
                 # 生成
                 outputs = self.model.generate(
                     inputs,
-                    max_new_tokens=512,
-                    temperature=0.7,
-                    do_sample=True,
-                    top_p=0.9,
+                    max_new_tokens=256,
+                    temperature=0.3,   # ★書式安定のため低温度
+                    do_sample=False,   # ★決定的生成でフォーマット遵守を優先
+                    top_p=1.0,
                     pad_token_id=self.tokenizer.eos_token_id,
                 )
 
-                # デコード
                 generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-                # apply_chat_templateで生成されたプロンプト部分を除去
-                # Swallowモデルの場合、[/INST]の後の出力を抽出
-                if "[/INST]" in generated_text:
-                    simplified = generated_text.split("[/INST]")[-1].strip()
-                else:
-                    # フォールバック: プロンプトの最後の部分で分割
-                    simplified = generated_text.split("【やさしい日本語に書き換えた文章】")[-1].strip()
+                simplified = self._extract_output(generated_text)
+                
 
-                # 空文字列や元の文章と同じ場合はリトライ
+                # 仕様：常に1行（途中改行なし）に正規化
+                if simplified:
+                    simplified = self._normalize_one_line(simplified)
+
                 if simplified and simplified != text:
+                    print(simplified)
                     return simplified
 
             except Exception:
@@ -194,7 +248,6 @@ class WRIMESimplifier:
                     print(f"Error at attempt {attempt + 1}/{max_retries}")
                 time.sleep(1)
 
-        # リトライ上限に達した場合はNoneを返す
         return None
 
     def simplify_dataset(
