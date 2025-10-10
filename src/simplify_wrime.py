@@ -37,6 +37,7 @@ SYSTEM_PROMPT = """あなたは日本語文章の平易化の専門家です。
 - 先頭に `output: ` を付け、その後に平易化文のみを書く。
 - 複数文でも途中で改行しない（句点「。」で区切るが改行は入れない）。
 - 説明・前置き・引用符・記号・装飾・箇条書き・余談は一切入れない。
+- ハッシュタグ、補足、注意、メモ、例、説明、箇条書き（`- ` など）、絵文字、顔文字、引用符、装飾は禁止。
 - 文末は日本語の句点「。」で終える。
 - 上記を守れない場合は、例外的に `output: [SKIP]` のみを出力する。
 """
@@ -54,7 +55,6 @@ USER_PROMPT_TEMPLATE = """
 
 output:
 """
-
 
 
 class WRIMESimplifier:
@@ -85,9 +85,12 @@ class WRIMESimplifier:
         self.verbose = verbose
 
         # 平易化データセットの保存先
-        self.simp_train_file = self.data_dir / "wrime_simp_train.pkl"
-        self.simp_valid_file = self.data_dir / "wrime_simp_valid.pkl"
-        self.simp_test_file = self.data_dir / "wrime_simp_test.pkl"
+        self.simp_train_file = self.data_dir / "wrime_simp_subset_train.pkl"
+        self.simp_valid_file = self.data_dir / "wrime_simp_subset_valid.pkl"
+        self.simp_test_file = self.data_dir / "wrime_simp_subset_test.pkl"
+        # self.simp_train_file = self.data_dir / "wrime_simp_train.pkl"
+        # self.simp_valid_file = self.data_dir / "wrime_simp_valid.pkl"
+        # self.simp_test_file = self.data_dir / "wrime_simp_test.pkl"
 
         # モデルとトークナイザー（遅延初期化）
         self.model = None
@@ -163,32 +166,47 @@ class WRIMESimplifier:
 
     def _extract_output(self, generated_text: str) -> Optional[str]:
         """
-        Chat生成テキストから `output:` の値だけを安全に抽出し、1行に正規化して返す
+        生成テキストから `output:` の値だけを抽出し、1行に正規化して返す。
+        `output:` が無い場合は生成テキスト全体を候補にする。
         """
-        # apply_chat_templateで生成されたプロンプト部分を除去
-        # Swallowモデルの場合、[/INST]の後の出力を抽出
-        tail = generated_text.split("[/INST]", 1)[-1] if "[/INST]" in generated_text else generated_text
+        s = generated_text.strip()
 
-        # 最初の output: を見つける
-        m = re.search(r"output\s*:\s*(.+)", tail, flags=re.IGNORECASE | re.DOTALL)
-        if not m:
-            return None
+        # 1) output: 以降を拾う（無ければ全文）
+        m = re.search(r"^\s*output\s*:\s*(.+)$", s,
+                    flags=re.IGNORECASE | re.MULTILINE | re.DOTALL)
+        content = m.group(1).strip() if m else s
 
-        # 次の役割ラベルや空行の手前までを切り出す
-        candidate = m.group(1)
-        candidate = re.split(
-            r"\n{2,}|(?:^|\n)\s*(?:system|user|assistant)\s*:",
-            candidate, maxsplit=1, flags=re.IGNORECASE
+        # 2) 後続の「補足/注意/箇条書き/見出し」以降は捨てる
+        content = re.split(
+            r"(?:^|\n|\s)#\s*(?:補足|注意|メモ|解説|注記)\b|"
+            r"(?:^|\n)\s*-\s|"
+            r"(?:補足|注意)\s*[:：]",
+            content,
+            maxsplit=1
         )[0]
 
-        # コードブロック等の終端があれば手前まで
-        candidate = re.split(r"```|~~~", candidate, maxsplit=1)[0]
+        # 3) コードブロック等の終端があれば手前まで
+        content = re.split(r"(?:```|~~~)", content, maxsplit=1)[0]
 
-        # 1行化 & 余計な引用符・括弧を除去
-        candidate = self._normalize_one_line(candidate)
-        candidate = candidate.strip(" \"'“”「」『』（）()")
+        # 4) 1行化 & 装飾文字を除去
+        content = self._normalize_one_line(content)
+        content = content.strip(' "\'“”「」『』（）()')
 
-        return candidate or None
+        # 5) 同じ文が連続したときの重複除去（例: 同一文2回）
+        sentences = [p for p in re.split(r"(?<=。)", content) if p.strip()]
+        dedup = []
+        for p in sentences:
+            if not dedup or dedup[-1] != p:
+                dedup.append(p)
+        content = "".join(dedup).strip()
+
+        # 6) 文末の終止を保証（任意）
+        if content and not re.search(r"[。.!?]$", content):
+            content += "。"
+
+        return content or None
+
+
 
 
     def _simplify_text(self, text: str, max_retries: int = 3) -> Optional[str]:
@@ -220,27 +238,28 @@ class WRIMESimplifier:
                 model_device = next(self.model.parameters()).device
                 inputs = inputs.to(model_device)
 
-                # 生成
-                outputs = self.model.generate(
+                output_ids = self.model.generate(
                     inputs,
                     max_new_tokens=256,
-                    temperature=0.3,   # ★書式安定のため低温度
-                    do_sample=False,   # ★決定的生成でフォーマット遵守を優先
+                    temperature=0.5,
+                    do_sample=False,   # 決定的に
                     top_p=1.0,
                     pad_token_id=self.tokenizer.eos_token_id,
                 )
 
-                generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+                # プロンプト長だけ落として「生成分のみ」のトークンを取り出す
+                prompt_len = inputs.shape[-1]
+                gen_only_ids = output_ids[0, prompt_len:]
+
+                generated_text = self.tokenizer.decode(
+                    gen_only_ids,
+                    skip_special_tokens=True,              # 特殊トークン除去
+                    clean_up_tokenization_spaces=False     # スペース自動整形を無効化
+                )
 
                 simplified = self._extract_output(generated_text)
-                
-
-                # 仕様：常に1行（途中改行なし）に正規化
-                if simplified:
-                    simplified = self._normalize_one_line(simplified)
 
                 if simplified and simplified != text:
-                    print(simplified)
                     return simplified
 
             except Exception:
