@@ -22,10 +22,20 @@ dependencies = [
     "tiktoken (>=0.12.0,<0.13.0)",
     "sentencepiece (>=0.2.1,<0.3.0)",
     "python-dotenv (>=1.1.1,<2.0.0)",
-    "google-genai (>=1.41.0,<2.0.0)"
+    "google-genai (>=1.41.0,<2.0.0)",
+    "sentence-transformers>=2.0.0",
+    "bert-score>=0.3.13",
+    "sacrebleu>=2.0.0",
+    "seaborn>=0.11.0",
+    "matplotlib (>=3.10.7,<4.0.0)"
 ]
 
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [
+  { include = "classify", from = "src" }
+]
