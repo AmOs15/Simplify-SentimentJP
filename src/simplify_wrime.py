@@ -190,7 +190,7 @@ class WRIMESimplifier:
 
         # 4) 1行化 & 装飾文字を除去
         content = self._normalize_one_line(content)
-        content = content.strip(' "\'“”「」『』（）()')
+        content = content.strip(' "\'“”『』（）()')
 
         # 5) 同じ文が連続したときの重複除去（例: 同一文2回）
         sentences = [p for p in re.split(r"(?<=。)", content) if p.strip()]
