@@ -37,5 +37,5 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 packages = [
-  { include = "classify", from = "src" }
+  { include = "evaluate", from = "src" }
 ]
